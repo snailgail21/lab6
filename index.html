@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Lab 6</title>
+
+         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+           crossorigin=""/>
+
+         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+           crossorigin=""></script>
+		         
+<style type="text/css">
+  html, body { margin: 0; padding: 0; height: 100%; }
+  #map { min-height: 100%; }
+  
+.title {
+    padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: white;
+    background: rgba(255,255,255,0.8);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+
+.legend {
+    padding: 6px 8px;
+    font: 14px/20px Arial, Helvetica, sans-serif;
+    background: rgba(255,255,255,0.8);
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    border-radius: 5px;
+}
+.legend .line { display: inline-block; width: 30px; margin-right: 6px; vertical-align: middle; }
+.legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+</style>
+
+<!-- Load animation tweening library requirement for CanvasFlowMapLayer -->
+<script src="https://unpkg.com/@tweenjs/tween.js@18.6.4/dist/tween.umd.js"></script>
+
+<!-- Load CanvasFlowMapLayer; change the path (relative URL) if necessary -->
+<script src="CanvasFlowmapLayer.js"></script>
+     
+<script type="text/javascript" src="cookoutflow.js"></script>
+    </head>
+
+    <body>
+        <div id="map"></div>
+
+        <script type="text/javascript">
+
+          var map = L.map('map', {
+              center: [39,-97.5],
+              zoom: 2
+          });
+
+         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+           attribution: 'Tiles © Esri — Esri, DeLorme, NAVTEQ',
+           maxZoom: 11,
+           minZoom: 4
+         }).addTo(map);
+
+L.canvasFlowmapLayer(data, { //data is the variable name I used for defining the cook.js data
+  originAndDestinationFieldIds: {
+    originUniqueIdField: 'GEOID_A',  //origin ID; to reverse the flow, swap the origin and destination settings
+    originGeometry: { //origin coordinates 
+      x: 'A_lon',
+      y: 'A_lat'
+    },
+    destinationUniqueIdField: 'GEOID_B', //destination ID
+    destinationGeometry: { //destination coordinates
+      x: 'B_lon',
+      y: 'B_lat'
+    }
+  },
+
+  // Some options to customize the flow map, check out the link below for more
+  // https://github.com/jwasilgeo/Leaflet.Canvas-Flowmap-Layer#options-and-property-summary
+  pathDisplayMode: 'all',
+  animationStarted: true,
+  animationEasingFamily: 'Cubic', // Compare the options:
+                                  // https://jwasilgeo.github.io/Leaflet.Canvas-Flowmap-Layer/docs/comparison/
+  animationEasingType: 'In',
+  animationDuration: 2000,  // in millisecond, the larger the number the slower
+  
+canvasBezierStyle: {
+//This example demonstrates the use of graduated symbols (class breaks) for the flowlines
+//Other options: https://developers.arcgis.com/documentation/common-data-types/renderer-objects.htm
+  type: 'classBreaks',
+  field: 'Flow_A2B', // The field/value to be used for symbolizing the lines
+
+  // Define the classes and symbols below
+  classBreakInfos: [{
+    classMinValue: 950,  // break values of this class, using field values defined above
+    classMaxValue: 999,
+    symbol: {  // Define the symbology for this class
+               // See an example from the documentation:https://github.com/jwasilgeo/Leaflet.Canvas-Flowmap-Layer/blob/master/docs/class-breaks-symbology/index.html#L94-L137
+      strokeStyle: '#AD0755',  // flow line color
+      lineWidth: 10,  // flow line width
+      lineCap: 'round',  // shape of the stroke end
+    }
+  }, {  // another class
+    classMinValue: 900,
+    classMaxValue: 949,
+    symbol: {
+      strokeStyle: '#B21D63',
+      lineWidth: 6,
+      lineCap: 'round',
+    }
+  }, {  // one more class
+    classMinValue: 850,
+    classMaxValue: 899,
+    symbol: {
+      strokeStyle: '#CA2070',
+      lineWidth: 3.5,
+      lineCap: 'round',
+    }
+	}, {  // one more class
+    classMinValue: 800,
+    classMaxValue: 849,
+    symbol: {
+      strokeStyle: '#de237a',
+      lineWidth: 1.5,
+      lineCap: 'round',
+    }
+  }],
+},
+
+onEachFeature: function (feature, layer) {
+  var p = feature.properties;  // the attributes of this row
+  // Is this circle at the location of County B?
+  var atB = feature.geometry.coordinates[0] === p.B_lon;
+  // If yes, use the name of County B; if not, use the name of County A
+  var name = atB ? p.County_B + ', ' + p.State_B : p.County_A + ', ' + p.State_A;
+  layer.bindTooltip(name);  // the county name shows when the mouse is over the circle
+},
+
+}).addTo(map);
+
+var title = L.control({position: 'topright'}); // position of the title
+
+title.onAdd = function (map) {
+    this._div = L.DomUtil.create('div', 'title'); // create a div with a class "title"
+    this._div.innerHTML = "<h3>TOP 10 Gross Outflows from Cook County, Illinois</h3>";  // Title text, may use html to customize
+    return this._div;
+};
+
+title.addTo(map);
+
+var legend = L.control({position: 'bottomleft'}); // position of the legend
+
+legend.onAdd = function (map) {
+  var div = L.DomUtil.create('div', 'legend'); // create a div with a class "legend"
+  div.innerHTML = '<b>Net migration to Cook County</b><br>' +
+    // one line per class: height = lineWidth, background = strokeStyle
+    '<i class="line" style="height:10px; background:#AD0755"></i>950 to 999<br>' +
+    '<i class="line" style="height:6px; background:#B21D63"></i>900 to 949<br>' +
+    '<i class="line" style="height:3.5px; background:#CA2070"></i>850 to 899<br>' +
+    '<i class="line" style="height:1.5x; background:#de237a"></i>800 to 849<br>' +
+	// the circle colors are the default colors of the library
+    '<i class="dot" style="background:rgb(195,255,62); border:1px solid #555"></i>Origin county (Cook County)<br>' +
+    '<i class="dot" style="background:rgb(17,142,170)"></i>Destination';
+  return div;
+};
+
+legend.addTo(map);
+        </script>
+   </body>
+</html>
